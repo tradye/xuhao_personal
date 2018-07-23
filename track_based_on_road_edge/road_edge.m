@@ -3,33 +3,33 @@ alfa = 0; % 30 -30 45 -45 表示车辆航向角和道路的夹角
 %初始化
 if alfa == 0
     for i=1:100
-    x(i)= 0.1*i;
-    fl(i)= 10;
-    fr(i)=-10;
+        x(i)= 0.1*i;
+        fl(i)= 10;
+        fr(i)=-10;
     end
 elseif (alfa == 30)
     for i=1:100
-    x(i)= 0.1*i;
-    fl(i)= 10;
-    fr(i)=-10;
+        x(i)= 0.1*i;
+        fl(i)= sqrt(3)/3 * x(i) + 10;
+        fr(i)= sqrt(3)/3 * x(i) - 10;
     end
 elseif (alfa == -30)
     for i=1:100
-    x(i)= 0.1*i;
-    fl(i)= 10;
-    fr(i)=-10;
+        x(i)= 0.1*i;
+        fl(i)= -sqrt(3)/3 * x(i) + 10;
+        fr(i)= -sqrt(3)/3 * x(i) - 10;
     end
 elseif (alfa == 45)
     for i=1:100
-    x(i)= 0.1*i;
-    fl(i)= 10;
-    fr(i)=-10;
+        x(i)= 0.1*i;
+        fl(i)=x(i) + 10;
+        fr(i)=x(i) - 10;
     end    
 elseif (alfa == -45)
     for i=1:100
-    x(i)= 0.1*i;
-    fl(i)= 10;
-    fr(i)=-10;
+        x(i)= 0.1*i;
+        fl(i)= -x(i) + 10;
+        fr(i)= -x(i) - 10;
     end
 else
     
@@ -50,12 +50,12 @@ kmax=1.5;klmin=kmax;krmax=-kmax;
 x0=0;y0=0;s_thresh=1.2;
 pi = 3.1415926;
 K_expect = 0.0;
-w1 = 0.5;
-w2 = 0.5;
+w1 = 1.0;
+w2 = 0.1;
 C_cost_min = 0.0;
 
 delta_k = 0.05;
-C_p = 0.000001;
+C_p = 0.0;
 C_s = 0.0;
 %求解一次圆弧轨迹
 for i=1:100
@@ -90,92 +90,44 @@ for i=1:100
     else
         
         p = floor((klmin - krmax) / delta_k);
-        for j = 1:1:(p)
-           kp(j) = krmax + (kl(i) - kr(i)) / p * (j - 1); 
-           xp_ = linspace(0,x_max,p);
-           sp_ = asin(kp(j)*(xp_-x0))/kp(j);
-           yp_ = -1/kp(j)*cos(kp(j)*sp_)+1/kp(j)+y0;
-           for n = 1:1:j
-              C_p = C_p + min(abs(yp_(n) - fl(i)),abs(yp_(n) - fr(i)));
-%               fprintf('C_p = %f \n',C_p);
-%               fprintf('n = %f \n',n);
-              C_proximity(n) = 1 / C_p;
-%               fprintf('C_proximity = %f \n',C_proximity(n));
-              C_s = C_s + (kp(n) - K_expect)^2;
-              C_smooth(n) = C_s;
-%               fprintf('C_smooth = %f \n',C_smooth(n));
-           end
-%            C_proximity = 1 / C_p;
-%            fprintf('C_proximity = %f \n',C_proximity);
-
-           C_cost = w1* C_proximity + w2 * C_smooth;
-            if(j == 1)
-               C_cost_min = C_cost(j);
-               K_expect = kp(j);
-               index=j;
-            else
-               if(C_cost(j) <= C_cost_min)
-                   C_cost_min = C_cost(j);
-                   K_expect = kp(j);
-                   index = j;
-               end
-            end
-            fprintf('C_cost_min = %f \n',C_cost_min);
+        p = 100;
+        C_p = 0.000001;
+        C_s = 0.0;
+        for j = 1:1:(p )
+%            kp(j) = krmax + delta_k * (j - 1); 
+            kp = linspace(krmax,klmin,p);
+            xp_ = linspace(0,x_max,p);
+            sp_ = asin(kp(j)*(xp_-x0))/kp(j);
+            yp_ = -1/kp(j)*cos(kp(j)*sp_)+1/kp(j)+y0;
            
+%             tmp = min(abs(yp_(i) - fl(i)),abs(yp_(i) - fr(i)));
+%             tmp = min(abs(yp_(j) - fl(i)),abs(yp_(j) - fr(i)));
+            tmp = min(abs(yp_(i) - fl(i)),abs(yp_(i) - fr(i)));
+
+            C_p = C_p + tmp;
+
+            C_proximity(j) = 1 / C_p;
+            C_s = C_s + (kp(j) - K_expect)^2;
+            C_smooth(j) = C_s;
+           
+%            plot(xp_,yp_,'y*');%离散化后的控制空间
+
         end
-%         for n = 1:1:p
-%             C_p = C_p + min(abs(yp_(n) - fl(i)),abs(yp_(n) - fr(i)));
-%             %               fprintf('C_p = %f \n',C_p);
-%             %               fprintf('n = %f \n',n);
-%             C_proximity(n) = 1 / C_p;
-%             %               fprintf('C_proximity = %f \n',C_proximity(n));
-%             C_s = C_s + (kp(n) - K_expect)^2;
-%             C_smooth(n) = C_s;
-%             %               fprintf('C_smooth = %f \n',C_smooth(n));
-%         end
-%         C_cost = w1* C_proximity + w2 * C_smooth;
-%         if(j == 1)
-%            C_cost_min = C_cost(j);
-%            K_expect = kp(j);
-%            index=j;
-%         else
-%            if(C_cost(j) <= C_cost_min)
-%                C_cost_min = C_cost(j);
-%                K_expect = kp(j);
-%                index = j;
-%            end
-%         end
-        fprintf('K_expect = %f \n',K_expect);      
-%         kp = [];
-%         C_proximity = [];
-%         C_smooth = [];
-%         C_cost = [];
-%         if (i==1)
-%             CPY=cpy(i);
-%             KY=ky(i);%本控制周期的最佳曲率KY 
-%            index_i=i;
-%         else
-%             if(cpy(i)<CPY)
-%                 CPY=cpy(i); 
-%                 KY=ky(i);%本控制周期的最佳曲率KY
-%                 index_i=i;
-%             end
-%         end
-        
-%         for 
-%         C_p = C_p + min(fabs(yp_ - fl(i)),fabs(yp_ - fr(i)));
-%         [cpy(i),ky(i)]=zyql1(x,x_max,kr(i),kl(i),x0,y0,fl,fr);%控制命令离散化及选择最优控制指令
-%         if (i==1)
-%             CPY=cpy(i);
-%             KY=ky(i);%KY 最佳曲率
-%            index_i=i;
-%         else
-%             if(cpy(i)<CPY)
-%                 CPY=cpy(i); 
-%                 KY=ky(i);
-%                 index_i=i;
-%             end
-%         end
+           
+        C_cost = w1* C_proximity + w2 * C_smooth;
+
+        C_cost_min = C_cost(1);
+        for m = 1:1:length(C_cost)
+            if C_cost(m) <= C_cost_min
+                C_cost_min = C_cost(m);
+                K_expect = kp(m);
+                index = m;
+            end 
+        end
+
+        fprintf('K_expect = %f \n',K_expect);
+        fprintf('index = %f \n',index);
+
     end
     %% 控制空间内道路右侧所有的采样圆弧
     xr0=linspace(0,x_max,100);
@@ -186,7 +138,18 @@ for i=1:100
     xl0=linspace(0,x_max,100);%x坐标
     sl0=asin(kl(i)*(xl0-x0))/kl(i);%弧长
     yl0=-1/kl(i)*cos(kl(i)*sl0)+1/kl(i)+y0;%根据曲率和弧长，求y方向坐标
-    plot(xl0,yl0,'ko');%道路左侧所有的采样圆弧
+    plot(xl0,yl0,'go');%道路左侧所有的采样圆弧
+    
+%     if index == 1
+%         xy = linspace(0,x(index),100);
+%     else
+%         xy=linspace(x(index - 1),x(index),100);
+%     end
+%     
+%     sy=asin(K_expect*(xy-x0))/K_expect;
+%     fy=-1/K_expect*cos(K_expect*sy)+1/K_expect+y0;
+%     plot(xy,fy,'r*')
+%     hold on
 end
 
 %% 将最优路用红色星型曲线表示出来
@@ -195,7 +158,9 @@ end
 %  fy=-1/KY*cos(KY*sy)+1/KY+y0;
 % plot(xy,fy,'r*')
 
-xy=linspace(0,x(index),100);
-sy=asin(K_expect*(xy-x0))/K_expect;
-fy=-1/K_expect*cos(K_expect*sy)+1/K_expect+y0;
-plot(xy,fy,'r*')
+
+
+ xy=linspace(0,x(i),100);
+ sy=asin(K_expect*(xy-x0))/K_expect;
+ fy=-1/K_expect*cos(K_expect*sy)+1/K_expect+y0;
+ plot(xy,fy,'r*')
