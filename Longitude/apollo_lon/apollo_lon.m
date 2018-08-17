@@ -51,6 +51,8 @@ high_speed_integrator_saturation_level = 0.3;
 ref_speed = 10;%m/s
 ref_station = 10; % m
 
+sim('apollo_longitude',200);
+
 
 
 
