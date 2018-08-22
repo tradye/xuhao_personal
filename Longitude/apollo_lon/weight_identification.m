@@ -23,6 +23,7 @@ speed_controller_input_limit = 2.0; %unit: m/s
 station_integral_enable = false;
 station_integrator_saturation_level = 0.3;
 station_Kp = 0.2;
+station_Ki = 0.01;
 
 switch_speed = 2.0; % m/s
 
