@@ -66,9 +66,16 @@ G_longitude_close = G_longitude_open / (1 + G_longitude_open);
 % bode(G_longitude_open);
 % hold on,grid on
 margin(minreal(G_longitude_open));hold on,grid on
-sim('apollo_longitude',200);
 
 
+
+
+
+
+
+% sim('apollo_longitude',200);
+%% read plan points
+ readPlanPoints();
 
 
 
