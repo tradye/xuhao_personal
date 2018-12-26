@@ -1,6 +1,6 @@
 %% read calibration results and plot
 
-data = xlsread('D:\CIDI\Apollo\cidi_truck_calibration\cidi_calibration\data\MKZ002\result.csv');
+data = xlsread('D:\CIDI\D_file\CIDI改装车辆\中车电动公交\仿真及实车标定测试\calibration_available_20181127\calibration\data\MKZ002\result.csv');
 control_cmd = data(: , 1) ;
 spd = data(: , 2) ;
 acc = data(: , 3) ;

@@ -1,6 +1,6 @@
-%% 基于道路边沿采样的车道保持算法
-alfa = 45; % 30 -30 45 -45 表示车辆航向角和道路的夹角
-%初始化
+%% 基于道路边沿采样的车道保持算�?
+alfa = -30; % 30 -30 45 -45 表示车辆航向角和道路的夹�?
+%初始�?
 if alfa == 0
     for i=1:100
         x(i)= 0.1*i;
@@ -49,7 +49,7 @@ plot(x,fr);
 kmax=1.5;klmin=kmax;krmax=-kmax;
 x0=0;y0=0;s_thresh=1.2;
 pi = 3.1415926;
-K_expect = 0.08;
+K_expect = 0.00;
 w1 = 0.2;
 w2 = 0.1;
 C_cost_min = 0.0;
@@ -57,7 +57,7 @@ C_cost_min = 0.0;
 delta_k = 0.05;
 C_p = 0.000001;
 C_s = 0.0;
-%求解一次圆弧轨迹
+%求解�?次圆弧轨�?
 for i=1:100
     kl(i)=2*fl(i)/(x(i)^2+fl(i)^2);%计算车辆当前位置到道路左边沿采样点圆弧的曲率
     kr(i)=2*fr(i)/(x(i)^2+fr(i)^2);%计算车辆当前位置到道路右边沿采样点圆弧的曲率
@@ -79,11 +79,11 @@ for i=1:100
         if (kr(i)>-kmax)
             krmax=kr(i);
         end
-        x_max=x(i);%x_max对应l_max，沿x方向的局部最大感知范围
+        x_max=x(i);%x_max对应l_max，沿x方向的局部最大感知范�?
         kr(i)=krmax;
         kl(i)=klmin;
     end
-    %% 应满足任意时刻右侧曲率不大于左侧曲率，不然终止     
+    %% 应满足任意时刻右侧曲率不大于左侧曲率，不然终�?     
     if (kl(i)<kr(i))
         x_max=x(i-1);
         break;
@@ -110,7 +110,7 @@ for i=1:100
 %             C_s = C_s + (kp(j) - K_expect)^2;
 %             C_smooth(j) = C_s;
 %            
-% %            plot(xp_,yp_,'y*');%离散化后的控制空间
+% %            plot(xp_,yp_,'y*');%离散化后的控制空�?
 % 
 %         end
 %            
@@ -133,17 +133,17 @@ for i=1:100
     xr0=linspace(0,x_max,100);
     sr0=asin(kr(i)*(xr0-x0))/kr(i);
     yr0=-1/kr(i)*cos(kr(i)*sr0)+1/kr(i)+y0;
-    plot(xr0,yr0,'go');%道路右侧所有的采样圆弧
+    plot(xr0,yr0,'go');%道路右侧�?有的采样圆弧
      %% 控制空间内道路左侧所有的采样圆弧   
     xl0=linspace(0,x_max,100);%x坐标
     sl0=asin(kl(i)*(xl0-x0))/kl(i);%弧长
     yl0=-1/kl(i)*cos(kl(i)*sl0)+1/kl(i)+y0;%根据曲率和弧长，求y方向坐标
-    plot(xl0,yl0,'go');%道路左侧所有的采样圆弧
+    plot(xl0,yl0,'go');%道路左侧�?有的采样圆弧
     
 
 end
 
-%% 将最优路用红色星型曲线表示出来
+%% 将最优路用红色星型曲线表示出�?
 % xy=linspace(0,x(index_i),100);
 % sy=asin(KY*(xy-x0))/KY;
 %  fy=-1/KY*cos(KY*sy)+1/KY+y0;
@@ -167,7 +167,7 @@ for j = 1:1:(p )
     C_proximity(j) = 1 / C_p;
     C_smooth(j) = (kp(j) - K_expect)^2;
     C_p = 0.000001;           
-%             plot(xp_,yp_,'y*');%离散化后的控制空间
+%             plot(xp_,yp_,'y*');%离散化后的控制空�?
 
 end
 

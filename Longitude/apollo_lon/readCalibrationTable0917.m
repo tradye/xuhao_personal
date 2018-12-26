@@ -34,16 +34,34 @@ for i = 1:1:len
     
     v_max = 0:0.2:max(spd_table);
     for j = 1:1:length(v_max)
-        a = find(abs(spd_table - speed_table(j)) < 2);
+        a = find(abs(spd_table - speed_table(j)) < 1);
 %         speed_array(j) = mean(spd_table(a));
         acc_array(j) = mean(acc_table(a));           
     end
- 
-% v00=0:0.2:max(v);
-% for i=1:length(v00)
-%     n1=find(abs(v-v00(i))<2);
-%     a1(i)=mean(a(n1));
-% end
+    
+  
+%     if i > 1        
+%         for k = 1:1:length(v_max)
+% %             if cmd_table(i) > 0
+% %                 if( acc_array(k) > last_acc_array(k) )
+% %                     acc_array(k) = acc_array(k) - abs(acc_array(k) -  last_acc_array(k));
+% %                 end
+% %             else
+% %                 if( acc_array(k) > last_acc_array(k) )
+% %                     acc_array(k) = acc_array(k) - abs(acc_array(k) -  last_acc_array(k));
+% %                 end
+%              if( acc_array(k) > last_acc_array(k) )
+% %                     acc_array(k) = acc_array(k) - abs(acc_array(k) -  last_acc_array(k));
+%                 if ( acc_array(k) - last_acc_array(k)  > 0.1) && ( acc_array(k) - last_acc_array(k)  < 0.2)
+%                     acc_array(k) = acc_array(k) - 0.3;
+%                 elseif ( acc_array(k) - last_acc_array(k)  > 0.2) && ( acc_array(k) - last_acc_array(k)  < 0.3)
+%                     acc_array(k) = acc_array(k) - 0.4;
+%                 else
+%                     acc_array(k) = acc_array(k) - 0.1;
+%                 end
+%              end       
+%         end
+%     end
     
     
 %     for k = 1:1:length(speed_table)
@@ -57,9 +75,7 @@ for i = 1:1:len
 %             end
 %         end        
 %     end
-    
-%     plot(speed_array,acc_array, ':s' ,'LineWidth', LineWidth,'color',cc(i,:,:)); hold on
-%     grid on
+
 
     acc_new_table = [acc_new_table ;acc_array'];
     vel_new_table = [vel_new_table ;v_max'];
@@ -70,7 +86,7 @@ for i = 1:1:len
               'cmd = 30' ,'cmd = 25','cmd = -20' ,'cmd = -25' ,'cmd = -35' ,'cmd = -40' ,...
               'cmd = -50' ,'cmd = -60' ,'cmd = -70');
 
-       
+    last_acc_array = acc_array;   
 end
 
 title('calibration table results 0917');
