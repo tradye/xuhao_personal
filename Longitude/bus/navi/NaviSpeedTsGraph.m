@@ -485,6 +485,19 @@ classdef NaviSpeedTsGraph <handle
             dst.dda_max = min (constraints.dda_max , dst.dda_max);
             dst.dda_preffered = min(constraints.dda_preffered , dst.dda_preffered);
         end
+        function UpdateRangeConstraints(start_s, end_s ,constraints)
+            i0 = uint32(floor(start_s / obj.s_step_));
+            i1 = uint32(ceil(end_s / obj.s_step));
+            
+            if i0 == i1
+                CombineConstraints(constraints , constraints(1));
+            else
+                for i = 1:1:length(obj.constraints_)
+                    CombineConstraints(constraints , obj.constraints_(i));
+                end
+            end    
+            
+        end
         
         
     end
