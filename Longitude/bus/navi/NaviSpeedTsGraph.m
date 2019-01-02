@@ -1,4 +1,6 @@
 %% navi planner:speed planning matlab version
+%    author:xuhao
+%    data:2018.12
 
 classdef NaviSpeedTsGraph <handle
     properties
@@ -26,7 +28,8 @@ classdef NaviSpeedTsGraph <handle
         dda_p_min_ = []
         constraints_ 
         con_
-        st_ 
+        st_
+        output_
         constraint_v_max_ = []
         constraint_v_preffered_ = []
         constraint_a_max_ = []
@@ -71,7 +74,8 @@ classdef NaviSpeedTsGraph <handle
             
             obj.cap_saved_ratio_ = min(cap_saved_ratio, 1.0);
             s_point_num = uint32((s_max + obj.s_step_) / obj.s_step_);
-            obj.constraints_ = zeros(s_point_num,1);
+%             obj.constraints_ = zeros(s_point_num,1);
+            MakeConstrainStructArray(obj,s_point_num);%init struct array constraints_
             
             if(~compress_t)
                 t_num = uint32(( t_max + t_step) / (t_step)) ;
@@ -97,7 +101,7 @@ classdef NaviSpeedTsGraph <handle
             obj.s_p_ = zeros(length(obj.t_),1);
                     
                 
-        end
+        end% end Reset function
         function InitConstraintsTables(obj)
             s_point_num = length(obj.constraints_);
             obj.v_max_ = zeros(s_point_num,1);
@@ -133,11 +137,13 @@ classdef NaviSpeedTsGraph <handle
                 obj.dda_p_min_(i) = -obj.constraints_(i).dda_preffered;
                 obj.dda_p_max_(i) = obj.constraints_(i).dda_preffered;
             end
-        end
+        end% end InitConstraintsTables function
         
         function InitStTable(obj)
 %             s_point_num = length(obj.s_max_);%
-            
+            num = length(obj.s_max_);
+%             MakeStPointsStructArray(obj , num);
+            obj.st_ = MakeStPointsStructArray(obj , num);
             obj.st_(1).s_max = 0;
             obj.st_(1).s_min = 0;
             obj.st_(1).s_p_max = 0;
@@ -149,12 +155,12 @@ classdef NaviSpeedTsGraph <handle
             obj.st_(1).dda = 0;
             obj.st_(1).adjust = true;
             
-        end
+        end% end InitStTable function
         function PreprocessSConstraints(obj)
             for i = 1:1:length(obj.t_)
                 obj.s_p_(i) = obj.s_p_(i) * (1 - obj.cap_saved_ratio_);
             end
-        end
+        end%end PreprocessSConstraints function
         function out =  MakeSingleConstrainStruct(obj)
             field1 = 'v_max'; value1 = 0;
             field2 = 'v_preffered'; value2 = 0;
@@ -171,8 +177,8 @@ classdef NaviSpeedTsGraph <handle
         end
         
         
-        function  MakeConstrainStructArray(obj)
-            num = length(obj.constraints_);
+        function  MakeConstrainStructArray(obj,sizeofconstraints)
+            num = sizeofconstraints;
             field1 = 'v_max'; value1 = zeros(num,1);
             field2 = 'v_preffered'; value2 = zeros(num,1);
             field3 = 'a_max'; value3 = zeros(num,1);
@@ -183,29 +189,41 @@ classdef NaviSpeedTsGraph <handle
             field8 = 'da_preffered'; value8 = zeros(num,1);
             field9 = 'dda_max'; value9 = zeros(num,1);
             field10 = 'dda_preffered'; value10 = zeros(num,1);
-            obj.constraints_=struct(field1,value1,field2,value2,field3,value3,field4,value4,field5,value5,...
-                field6,value6,field7,value7,field8,value8,field9,value9,field10,value10);
+%             member = { 'v_max' , 'v_preffered' ,  'a_max' , 'a_preffered',  'b_max' , 'b_preffered' , ...
+%                                    'da_max' , 'da_preffered' ,  'dda_max' , 'dda_preffered' };
+%             obj.constraints_=struct(field1,value1,field2,value2,field3,value3,field4,value4,field5,value5,...
+%                 field6,value6,field7,value7,field8,value8,field9,value9,field10,value10);
 
-%             field1 = 'v_max'; value1 = 0;
-%             field2 = 'v_preffered'; value2 = 0;
-%             field3 = 'a_max'; value3 = 0;
-%             field4 = 'a_preffered'; value4 = 0;
-%             field5 = 'b_max'; value5 = 0;
-%             field6 = 'b_preffered'; value6 = 0;
-%             field7 = 'da_max'; value7 = 0;
-%             field8 = 'da_preffered'; value8 = 0;
-%             field9 = 'dda_max'; value9 = 0;
-%             field10 = 'dda_preffered'; value10 = 0;
+%             field1 = 'v_max'; value1 = 0.0;
+%             field2 = 'v_preffered'; value2 = 0.0;
+%             field3 = 'a_max'; value3 = 0.0;
+%             field4 = 'a_preffered'; value4 = 0.0;
+%             field5 = 'b_max'; value5 = 0.0;
+%             field6 = 'b_preffered'; value6 = 0.0;
+%             field7 = 'da_max'; value7 = 0.0;
+%             field8 = 'da_preffered'; value8 = 0.0;
+%             field9 = 'dda_max'; value9 = 0.0;
+%             field10 = 'dda_preffered'; value10 = 0.0;
 %             constrain_struct_=struct(field1,value1,field2,value2,field3,value3,field4,value4,field5,value5,...
 %                 field6,value6,field7,value7,field8,value8,field9,value9,field10,value10);
-%             for i = 1:1:length(obj.constraints_)
-%                 obj.constraints_(i) = constrain_struct_;
-%             end
+            for i = 1:1:num
+                obj.constraints_(i). v_max= value1(i);
+                obj.constraints_(i). v_preffered= value2(i);
+                obj.constraints_(i). a_max= value3(i);
+                obj.constraints_(i). a_preffered= value4(i);
+                obj.constraints_(i). b_max= value5(i);
+                obj.constraints_(i). b_preffered= value6(i);
+                obj.constraints_(i). da_max= value7(i);
+                obj.constraints_(i). da_preffered= value8(i);
+                obj.constraints_(i). dda_max= value9(i);
+                obj.constraints_(i). dda_preffered= value10(i);
+            end
             
-        end
+        end%end MakeConstrainStructArray function
         
-        function MakeStPointsStructArray(obj)
-            num = length(obj.s_max_);
+        function st_struct = MakeStPointsStructArray(obj,sizeofstpoints)
+%             num = length(obj.s_max_);
+            num = sizeofstpoints;
             field1 = 's_max'; value1 = zeros(num,1);
             field2 = 's_min'; value2 = zeros(num,1);
             field3 = 's_p_max'; value3 = zeros(num,1);
@@ -216,10 +234,53 @@ classdef NaviSpeedTsGraph <handle
             field8 = 'da'; value8 = zeros(num,1);
             field9 = 'dda'; value9 = zeros(num,1);
             field10 = 'adjust'; value10 = zeros(num,1);
-            obj.st_=struct(field1,value1,field2,value2,field3,value3,field4,value4,field5,value5,...
-                field6,value6,field7,value7,field8,value8,field9,value9,field10,value10);
+%             obj.st_=struct(field1,value1,field2,value2,field3,value3,field4,value4,field5,value5,...
+%                 field6,value6,field7,value7,field8,value8,field9,value9,field10,value10);
+%             for i = 1:1:num
+%                 obj.st_(i). s_max= value1(i);
+%                 obj.st_(i). s_min= value2(i);
+%                 obj.st_(i). s_p_max= value3(i);
+%                 obj.st_(i). s_p_min= value4(i);
+%                 obj.st_(i). s= value5(i);
+%                 obj.st_(i). v= value6(i);
+%                 obj.st_(i). a= value7(i);
+%                 obj.st_(i). da= value8(i);
+%                 obj.st_(i). dda= value9(i);
+%                 obj.st_(i). adjust= value10(i);
+%             end
+            for i = 1:1:num
+                st_struct(i). s_max= value1(i);
+                st_struct(i). s_min= value2(i);
+                st_struct(i). s_p_max= value3(i);
+                st_struct(i). s_p_min= value4(i);
+                st_struct(i). s= value5(i);
+                st_struct(i). v= value6(i);
+                st_struct(i). a= value7(i);
+                st_struct(i). da= value8(i);
+                st_struct(i). dda= value9(i);
+                st_struct(i). adjust= value10(i);
+            end
             
-        end
+        end% end MakeStPointsStructArray function
+        
+        function speed_ts_struct = MakeNaviSpeedTsPointsStructArray(obj,size)
+            num = size;
+            field1 = 't'; value1 = zeros(num,1);
+            field2 = 's'; value2 = zeros(num,1);
+            field3 = 'v'; value3 = zeros(num,1);
+            field4 = 'a'; value4 = zeros(num,1);
+            field5 = 'da'; value5 = zeros(num,1);
+            field6 = 'dda'; value6 = zeros(num,1);
+            
+             for i = 1:1:num
+                speed_ts_struct(i).t= value1(i);
+                speed_ts_struct(i).s= value2(i);
+                speed_ts_struct(i).v= value3(i);
+                speed_ts_struct(i).a= value4(i);
+                speed_ts_struct(i).da= value5(i);
+                speed_ts_struct(i).dda= value6(i);
+            end
+        end% end MakeNaviSpeedTsPointsStructArray function
         
         function out = OptimizeStTable(obj)
             mode = 0;
@@ -227,9 +288,9 @@ classdef NaviSpeedTsGraph <handle
             end_i = 0;
             mode3_start_i = 0;
             
-            for i=1:1:length(obj.st_)
+            for i=2:1:length(obj.st_)
                 cur_s_p = obj.s_p_(i);
-                cur_s_max = s_max(i);
+                cur_s_max = obj.s_max_(i);
                 cur_v_max = 1000.0;
                 cur_a_max = 1000.0;
                 cur_a_min = -1000.0;
@@ -238,16 +299,31 @@ classdef NaviSpeedTsGraph <handle
                 cur_dda_max =1000.0;
                 cur_dda_min = -1000.0;
                 
-                if (~GetConstraint(true,obj.v_max_,obj.st_(i - 1).s, cur_v_max) || ...
-                    ~GetConstraint(true,obj.a_max_,obj.st_(i - 1).s, cur_a_max) || ...
-                    ~GetConstraint(false,obj.a_min_,obj.st_(i - 1).s, cur_a_min) || ...
-                    ~GetConstraint(true,obj.da_max_,obj.st_(i - 1).s, cur_da_max) || ...
-                    ~GetConstraint(false,obj.da_min_,obj.st_(i - 1).s, cur_da_min) || ...
-                    ~GetConstraint(true,obj.dda_max_,obj.st_(i - 1).s, cur_dda_max) || ...
-                    ~GetConstraint(true,obj.dda_min_,obj.st_(i - 1).s, cur_dda_min))
+                [status1 , cur_v_max] = GetConstraint(obj,true,obj.v_max_,obj.st_(i - 1).s);
+                [status2 , cur_a_max] = GetConstraint(obj,true,obj.a_max_,obj.st_(i - 1).s);
+                [status3 , cur_a_min] = GetConstraint(obj,false,obj.a_min_,obj.st_(i - 1).s);
+                [status4 , cur_da_max] = GetConstraint(obj,true,obj.da_max_,obj.st_(i - 1).s);
+                [status5 , cur_da_min] = GetConstraint(obj,false,obj.da_min_,obj.st_(i - 1).s); 
+                [status6 , cur_dda_max] = GetConstraint(obj,true,obj.dda_max_,obj.st_(i - 1).s);
+                [status7 , cur_dda_min] = GetConstraint(obj,true,obj.dda_min_,obj.st_(i - 1).s);
+                
+                if (~status1 || ~status2 || ...
+                    ~status3 || ~status4 || ...
+                    ~status5 || ~status6 || ~status7)
 %                 st_.resize(i);
                     break;
                 end
+                
+%                 if (~GetConstraint(true,obj.v_max_,obj.st_(i - 1).s, cur_v_max) || ...
+%                     ~GetConstraint(true,obj.a_max_,obj.st_(i - 1).s, cur_a_max) || ...
+%                     ~GetConstraint(false,obj.a_min_,obj.st_(i - 1).s, cur_a_min) || ...
+%                     ~GetConstraint(true,obj.da_max_,obj.st_(i - 1).s, cur_da_max) || ...
+%                     ~GetConstraint(false,obj.da_min_,obj.st_(i - 1).s, cur_da_min) || ...
+%                     ~GetConstraint(true,obj.dda_max_,obj.st_(i - 1).s, cur_dda_max) || ...
+%                     ~GetConstraint(true,obj.dda_min_,obj.st_(i - 1).s, cur_dda_min))
+% %                 st_.resize(i);
+%                     break;
+%                 end
                 
                 r = UpdateStPoint(mode, false, cur_s_p , cur_v_max , cur_a_max , cur_a_min,...
                                                cur_da_max , cur_da_min , cur_dda_max , cur_dda_min,i);
@@ -329,14 +405,17 @@ classdef NaviSpeedTsGraph <handle
                 end             
             end
             out = true;
-        end
-        function out = GetConstraint(obj, prop ,table ,s ,con)
+        end%end OptimizeStTable function
+%         function out = GetConstraint(obj, prop ,table ,s ,con)
+        function [out , con] = GetConstraint(obj, prop ,table ,s )
             si = s / obj.s_step_;
             i0 = uint32(floor(si));
             i1 = uint32(ceil(si));
             
-            if(i0 < 0 || i1 >= length(table))
+%             if(i0 < 0 || i1 >= length(table))
+            if(i0 < 1 || i1 >= length(table))
                 out = false;
+                con = table(1);
                 return;
             end
             
@@ -351,7 +430,7 @@ classdef NaviSpeedTsGraph <handle
             end
             out = true;
             
-        end
+        end%end GetConstraint function
         
         function out = UpdateStPoint(obj,mode,adjust,s_max,v_max,a_max,a_min,...
                                                         da_max,da_min,dda_max,dda_min,i)
@@ -429,6 +508,7 @@ classdef NaviSpeedTsGraph <handle
                     
                 if(hard_s_max < hard_s_min)
                     out =  false;
+                    return;
                 end
                 if(up)
                     obj.st_(i).s = hard_s_max;
@@ -456,23 +536,38 @@ classdef NaviSpeedTsGraph <handle
                 out = input;
             end
         end
-        function val = Solve(obj)
+        function [val]= Solve(obj)
             InitConstraintsTables(obj);
             
             InitStTable(obj);
             
-            PreprocessSconstraints(obj);
+            PreprocessSConstraints(obj);
             
             if(~OptimizeStTable(obj))
                 val = false;
                 return;
             end
+            num = length(obj.st_);
+            obj.output_ = MakeNaviSpeedTsPointsStructArray(obj,num);
             
+            for i  = 1:1:length(obj.output_)
+                obj.output_(i).t = obj.t_(i);
+                obj.output_(i).s = obj.st_(i).s;
+                obj.output_(i).v = obj.st_(i).v;
+                obj.output_(i).a = obj.st_(i).a;
+                obj.output_(i).da = obj.st_(i).da;
+                obj.output_(i).dda = obj.st_(i).dda;
+            end
             
-        end
-        function val = UpdateConstraints(obj)
-            
-        end
+        val = true;    
+        end%end Solve function
+        
+        function UpdateConstraints(obj,constraints)
+            for i = 1:1:length(obj.constraints_)
+                    CombineConstraints(constraints , obj.constraints_(i));
+            end
+        end%end UpdateConstraints function 
+        
         function CombineConstraints(obj,constraints,dst)
             dst.v_max = min(constraints.v_max, dst.v_max);
             dst.v_preffered = min (constraints.v_preffered , dst.v_preffered);
@@ -484,20 +579,21 @@ classdef NaviSpeedTsGraph <handle
             dst.da_preffered = min(constraints.b_preffered , dst.da_preffered);
             dst.dda_max = min (constraints.dda_max , dst.dda_max);
             dst.dda_preffered = min(constraints.dda_preffered , dst.dda_preffered);
-        end
-        function UpdateRangeConstraints(start_s, end_s ,constraints)
+        end% end CombineConstraints function
+        
+        function UpdateRangeConstraints(obj,start_s, end_s ,constraints)
             i0 = uint32(floor(start_s / obj.s_step_));
-            i1 = uint32(ceil(end_s / obj.s_step));
+            i1 = uint32(ceil(end_s / obj.s_step_));
             
             if i0 == i1
-                CombineConstraints(constraints , constraints(1));
+                CombineConstraints(obj,constraints , obj.constraints_(1));
             else
                 for i = 1:1:length(obj.constraints_)
-                    CombineConstraints(constraints , obj.constraints_(i));
+                    CombineConstraints(obj,constraints , obj.constraints_(i));
                 end
             end    
             
-        end
+        end % end UpdateRangeConstraints
         
         
     end
