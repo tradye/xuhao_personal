@@ -11,6 +11,8 @@ global soft_centric_accel_limit;
 global hard_centric_accel_limit;
 global kappa_preview;
 global kKappaSmooth;
+global kKappaPreviewBackwardRatio;
+
 kDefaultSStep = 1.0;
 kDefaultSMax = 2.0;
 kDefaultTStep = 0.1;
@@ -21,48 +23,47 @@ kTsGraphSStep = 0.1;
 kTsGraphTStep = 0.1;
 kTsGraphTMax = 10.0;
 % kKappaSmooth = 
+kKappaPreviewBackwardRatio = 0.25;
 
-soft_centric_accel_limit = 1.4;%configurable para
-hard_centric_accel_limit = 1.4;% configurable para
-kappa_preview = 0.12; %configurable para
- 
- 
-s_step = 1;
-s_max  = 100;
-t_step = 0.1;
-t_max = 8;
-compress_t = true;
-cap_saved_ratio = 1;
+soft_centric_accel_limit = 0.35;%configurable para
+hard_centric_accel_limit = 1.0;% configurable para
+kappa_preview = 15.0; %configurable para
+
+% navi_speed_decider_config {
+%         preferred_accel: 0.4
+%         preferred_decel: 0.7
+%         preferred_jerk: 0.5
+%         preferred_djerk: 3.0
+%         max_accel: 1.0
+%         max_decel: 3.5
+%         max_jerk: 3.0
+%         max_djerk: 100.0
+%         enable_compress_t: true
+%         cap_saved_ratio: 0.0
+%         obstacle_buffer: 2.5
+%         safe_distance_base: 1.5
+%         safe_distance_ratio: 5.0
+%         estop_range: 0.0
+%         estop_speed_threshold: 0.0
+%         soft_centric_accel_limit: 0.35
+%         hard_centric_accel_limit: 1.0
+%         enable_safe_path: false
+%         enable_planning_start_point: true
+%         kappa_preview: 15.0
+%     }
 start_v = 0;
 start_a = 0;
 start_da = 0;
 % s_step = planning_length > kTsGraphSStep
 %                     ? kTsGraphSStep
 %                     : planning_length / kFallbackSpeedPointNum;
-end_s = 200;
-start_s = 0;
-vehicle_v = 0;
-start_v = max(0,start_v);
-planning_length = end_s - start_s; 
-if(planning_length > kTsGraphSStep)
-    s_step = kTsGraphSStep;
-else
-    s_step = planning_length / kFallbackSpeedPointNum;
-end
 
 ts_graph_ = NaviSpeedTsGraph(0.1,0,0);
-% ts_graph_.Reset(s_step, planning_length, kTsGraphTStep, kTsGraphTMax, compress_t, cap_saved_ratio,start_v,start_a, start_da);
-% ts_graph_.Solve();
-% length(ts_graph.t_)
-% ts_graph.t_
-% ts_graph_.Solve();
-size_path_points = 200;
-path_points = MakePathPointsStructArray(size_path_points);
-s_test = linspace(0,200,201);
-for i = 1:1:size_path_points
-    path_points(i).s = s_test(i);
-end
-speed_data = MakeSpeedDecision(1, start_v , start_a , start_da , path_points , 1, 1, 1,ts_graph_);
+
+filepath = 'D:\CIDI\D_file\CIDI改装车辆\中车电动公交\trucksim_simulink\scripts\control_path_0904.OK.txt.smoothed';
+
+path_points = readPathPoints(filepath);
+% speed_data = MakeSpeedDecision(1, start_v , start_a , start_da , path_points , 1, 1, 1);
 
 % message PathPoint {
 %   // coordinates
@@ -85,61 +86,59 @@ speed_data = MakeSpeedDecision(1, start_v , start_a , start_da , path_points , 1
 %   optional string lane_id = 9;
 % }
 
-function speed_data = MakeSpeedDecision(reference_line_info , start_v , start_a , start_da , path_points , obstacles, find_obstacle, speed_data,ts_graph_)
+
 
 %     global kDefaultSStep ;
 %     global kDefaultSMax ;
 %     global kDefaultTStep ;
 %     global kDefaultTMax ;
 %     global kSmoothCount ;
-    global kFallbackSpeedPointNum;
-    global kTsGraphSStep ;
-    global kTsGraphTStep ;
-    global kTsGraphTMax ;
-    start_s =  path_points(1).s;
-    end_s = path_points(end).s ;
-    planning_length = end_s - start_s ;
-    compress_t = true;
-    cap_saved_ratio = 1.0;
-    
-    fprintf('start to make speed decision ,start_v : %f \n', start_v);
-    fprintf(' start_a : %f \n', start_a);
-    fprintf('start_da : %f \n', start_da);
-    fprintf('start_s : %f \n', start_s);
-    fprintf('planning_length : %f \n', planning_length);
-    
-    start_v = max(0 , start_v);
-    s_step = 0;
-    if planning_length > kTsGraphSStep
-        s_step = kTsGraphSStep;
-    else
-         s_step = planning_length / kFallbackSpeedPointNum;
-    end
-    
-    ts_graph_.Reset(s_step, planning_length, kTsGraphTStep, kTsGraphTMax, compress_t, cap_saved_ratio,start_v,start_a, start_da);
+
+start_s =  path_points(1).s;
+end_s = path_points(end).s ;
+planning_length = end_s - start_s ;
+compress_t = true;
+cap_saved_ratio = 0.0;
+
+fprintf('start to make speed decision ,start_v : %f \n', start_v);
+fprintf('start_a : %f \n', start_a);
+fprintf('start_da : %f \n', start_da);
+fprintf('start_s : %f \n', start_s);
+fprintf('planning_length : %f \n', planning_length);
+
+start_v = max(0 , start_v);
+
+if planning_length > kTsGraphSStep
+    s_step = kTsGraphSStep;
+else
+     s_step = planning_length / kFallbackSpeedPointNum;
+end
+
+ts_graph_.Reset(s_step, planning_length, kTsGraphTStep, kTsGraphTMax, compress_t, cap_saved_ratio,start_v,start_a, start_da);
 
 %     ret = AddPerceptionRangeConstraints();
-    ret = AddCentricAccelerationConstraints(path_points,ts_graph_);
-    
-    if ret ~= true
-        fprintf('add t-s constraints base on centruc acceleration failed');
-        return;
-    end
-    
-    if  ts_graph_.Solve() ~= true
-        fprintf('Solve speed data failed');
-        return;
-    end
-    speed_data = ts_graph_.output_;
+ret = AddCentricAccelerationConstraints(path_points,ts_graph_);
 
+if ret ~= true
+    fprintf('add t-s constraints base on centric acceleration failed');
+    return;
 end
+
+if  ts_graph_.Solve() ~= true
+    fprintf('Solve speed data failed');
+    return;
+end
+speed_data = ts_graph_.output_;
+
+% end MakeSpeedDecision function
 
 function status = AddCentricAccelerationConstraints(path_points,ts_graph_)
     global soft_centric_accel_limit;
     global hard_centric_accel_limit;
     global kappa_preview;
-    global kTsGraphSStep;
-    global kKappaSmooth;
+%     global kTsGraphSStep;
+%     global kKappaSmooth;
+    global kKappaPreviewBackwardRatio;
     if length(path_points) < 2
         fprintf('too few path points');
         status = false;
@@ -169,34 +168,16 @@ function status = AddCentricAccelerationConstraints(path_points,ts_graph_)
         
         v_preffered = sqrt(soft_centric_accel_limit / kappa);%preffered speed compute every points
         v_max = sqrt(hard_centric_accel_limit / kappa); %max speed compute every points
+        fprintf('v_preffered: %f \n' , v_preffered);
+        fprintf('v_max: %f \n' , v_max);
         
-        s_table(i - 1) = end_s;
-        v_max_table(i - 1) = v_max;
-        v_preffered_table(i - 1) = v_preffered; 
-        if kappa > max_kappa
-            max_kappa = kappa;
-            max_kappa_v = v_max;
-            preffered_kappa_v = v_preffered;
-            max_kappa_s = start_s;
-        end
+        start_s = max( (start_s - kappa_preview * ( 1 - kKappaPreviewBackwardRatio)) , 0);
+        end_s = end_s + kappa_preview *  kKappaPreviewBackwardRatio ;
+%         fprintf('start_s: %f \n' , start_s);
+%         fprintf('end_s: %f \n' , end_s);
         
-    end
-        %kappa preview
-    for i = 1:1:length(s_table)
-        len = kappa_preview / kTsGraphSStep;
-        for j = i:1:length(s_table)
-            v_preffered_table(i) = min(  v_preffered_table(j) / ( 1.0 - sqrt( (j - i) / len  )  ) , v_preffered_table(i)    );
-        end
-    end
-
-    start_s = 0.0;
-    for i = 1:1:length(s_table)
-        end_s_tmp = s_table(i);
-        v_max_tmp = v_max_table(i);
-        v_preffered_tmp = v_preffered_table(i);
-        %NaviSpeedTsConstraints constraints;
-        constraints.v_max = v_max_tmp;
-        constraints.v_preffered = v_preffered_tmp;
+        constraints.v_max = v_max;
+        constraints.v_preffered = v_preffered;
         constraints.a_max = 0;
         constraints.a_preffered = 0;
         constraints.b_max = 0;
@@ -205,14 +186,53 @@ function status = AddCentricAccelerationConstraints(path_points,ts_graph_)
         constraints.da_preffered = 0;
         constraints.dda_max = 0;
         constraints.dda_preffered = 0;
-        ts_graph_.UpdateRangeConstraints(start_s , end_s + kKappaSmooth, constraints);
-        start_s = end_s_tmp;
+
+        ts_graph_.UpdateRangeConstraints(start_s , end_s , constraints);
+%         s_table(i - 1) = end_s;
+%         v_max_table(i - 1) = v_max;
+%         v_preffered_table(i - 1) = v_preffered; 
+%         if kappa > max_kappa
+%             max_kappa = kappa;
+%             max_kappa_v = v_max;
+%             preffered_kappa_v = v_preffered;
+%             max_kappa_s = start_s;
+%         end
         
     end
+        %kappa preview
+%     for i = 1:1:length(s_table)
+%         len = kappa_preview / kTsGraphSStep;
+%         for j = i:1:length(s_table)
+%             v_preffered_table(i) = min(  v_preffered_table(j) / ( 1.0 - sqrt( (j - i) / len  )  ) , v_preffered_table(i)    );
+%         end
+%     end
+
+%     start_s = 0.0;
+%     for i = 1:1:length(s_table)
+%         end_s_tmp = s_table(i);
+%         v_max_tmp = v_max_table(i);
+%         v_preffered_tmp = v_preffered_table(i);
+%         %NaviSpeedTsConstraints constraints;
+%         constraints.v_max = v_max_tmp;
+%         constraints.v_preffered = v_preffered_tmp;
+%         constraints.a_max = 0;
+%         constraints.a_preffered = 0;
+%         constraints.b_max = 0;
+%         constraints.b_preffered = 0;
+%         constraints.da_max = 0;
+%         constraints.da_preffered = 0;
+%         constraints.dda_max = 0;
+%         constraints.dda_preffered = 0;
+%         fprintf('constraints.v_preffered: %f \n' , constraints.v_preffered);
+%         fprintf('constraints.v_max: %f \n' , constraints.v_max);
+%         ts_graph_.UpdateRangeConstraints(start_s , end_s + kKappaSmooth, constraints);
+%         start_s = end_s_tmp;
+%         
+%     end
     fprintf('Add speed limit for centric acceleration with kappa: %f \n' , max_kappa);
     status = true;
 
-end
+end% end AddCentricAccelerationConstraints function
 
 % function status = AddConfiguredConstraints(reference_line_info , start_s , end_s)
 %     constraints.v_max = FLAGS_planning_upper_speed_limit;
@@ -253,6 +273,67 @@ function path_point_struct = MakePathPointsStructArray(size)
         path_point_struct(i).lane_id= value9(i);
     end
 end% end MakeNaviSpeedTsPointsStructArray function
+
+function path_points = readPathPoints(filepath)
+%     filename = 'D:\CIDI\D_file\CIDI改装车辆\中车电动公交\trucksim_simulink\scripts\control_path_0904.OK.txt.smoothed';
+    data1 = fopen(filepath);
+    A = textscan(data1,'%s');
+    fclose(data1);
+    num = length(A{1,1});
+    delta_num = 9;
+    Kappa = [];
+    S = [];
+    Theta = [];
+    X = [];
+    Y = [];
+    Dkappa = [];
+    for i = 1:1:(num/delta_num)
+        for j = 1:1:delta_num
+            a1 = A{1,1}{(i-1)*delta_num + 1,1};
+            a2 = A{1,1}{(i-1)*delta_num + 2 ,1};
+            a3 = A{1,1}{(i-1)*delta_num + 3,1};
+            a4 = A{1,1}{(i-1)*delta_num + 4,1};
+            a5 = A{1,1}{(i-1)*delta_num + 5,1};
+            a6 = A{1,1}{(i-1)*delta_num + 6,1};
+            a7 = A{1,1}{(i-1)*delta_num + 7,1};
+            a8 = A{1,1}{(i-1)*delta_num + 8,1};
+            a9 = A{1,1}{(i-1)*delta_num + 9,1};
+            a7_1 = a7(1,5:end);
+            a8_1 = a8(1,5:end);
+            a9_1 = a9(1,10:end-1);
+    %         a = [a;a1];
+    %         kappa = str2double(a2);
+    %         kappa_table = [kappa_table;kappa];
+        end
+        kappa = str2double(a2);
+        s = str2double(a4);
+        theta = str2double(a6);
+        x = str2double(a7_1);
+        y = str2double(a8_1);
+        dkappa = str2double(a9_1);
+
+        Kappa = [Kappa;kappa];
+        S = [S;s];
+        Theta = [Theta;theta];
+        X = [X;x];
+        Y = [Y;y];
+        Dkappa = [Dkappa;kappa];
+
+    end
+    size_path_points = 200;
+    path_points = MakePathPointsStructArray(size_path_points);
+    for i = 1:1:length(path_points)
+        path_points(i).x = X(i);
+        path_points(i).y = Y(i);
+        path_points(i).z = 0;
+        path_points(i).theta = Theta(i);
+        path_points(i).kappa = Kappa(i);
+        path_points(i).s = S(i);
+        path_points(i).dkappa = Dkappa(i);
+        path_points(i).ddkappa = 0;
+        path_points(i).lane_id = 0;
+    end
+end
 
 
 

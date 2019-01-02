@@ -27,36 +27,8 @@ classdef NaviSpeedTsGraph <handle
         dda_p_max_ = []
         dda_p_min_ = []
         constraints_ 
-        con_
         st_
         output_
-        constraint_v_max_ = []
-        constraint_v_preffered_ = []
-        constraint_a_max_ = []
-        constraint_a_preffered_ = []
-        constraint_b_max_ = []
-        constraint_b_preffered_ = []
-        constraint_da_max_ = []
-        constraint_da_preffered_ = []
-        constraint_dda_max_ = []
-        constraint_dda_preffered_ = []
-        navispeedtspoint_t_ = []
-        navispeedtspoint_s_ = []
-        navispeedtspoint_v_ = []
-        navispeedtspoint_a_ = []
-        navispeedtspoint_da_ = []
-        navispeedtspoint_dda_ = []
-        stpoint_s_max_ = []
-        stpoint_s_p_max_ = []
-        stpoint_s_p_min_ = []
-        stpoint_s_min_ = []
-        stpoint_s_ = []
-        stpoint_v_ = []
-        stpoint_a_ = []
-        stpoint_da_ = []
-        stpoint_dda_ = []
-        stpoint_up_ = []
-        stpoint_adjust_ = []
         
     end
     methods
@@ -73,7 +45,9 @@ classdef NaviSpeedTsGraph <handle
             obj.start_da_ = start_da;
             
             obj.cap_saved_ratio_ = min(cap_saved_ratio, 1.0);
-            s_point_num = uint32((s_max + obj.s_step_) / obj.s_step_);
+%             s_point_num = uint32((s_max + obj.s_step_) / obj.s_step_);
+            s_point_num = uint32((s_max ) / obj.s_step_);
+            fprintf('num of struct constraints_ is: %d \n' , s_point_num);
 %             obj.constraints_ = zeros(s_point_num,1);
             MakeConstrainStructArray(obj,s_point_num);%init struct array constraints_
             
@@ -85,26 +59,27 @@ classdef NaviSpeedTsGraph <handle
                 end
             else
                 t_num1 = 3 * uint32((t_max + t_step) / (25.0 * t_step));
+                fprintf('t_num1: %d \n' , t_num1);
                 obj.t_ = zeros(t_num1,1);
                 obj.t_(1) = 0.0;
                 for i = 2:1:(t_num1/3)
                     obj.t_(i) = obj.t_(i-1) + t_step;
                 end
-                for i = (t_num1/3):1:(t_num1*2/3)
+                for i = (t_num1/3 +1):1:(t_num1*2/3)
                     obj.t_(i) = obj.t_(i-1) +8* t_step;
                 end
-                for i = (t_num1*2/3):1:(t_num1)
+                for i = (t_num1*2/3 + 1):1:(t_num1)
                     obj.t_(i) = obj.t_(i-1) +16* t_step;
                 end
             end
-            obj.s_max_ = zeros(length(obj.t_),1);
-            obj.s_p_ = zeros(length(obj.t_),1);
+            fprintf('length t_ : %d \n' , length(obj.t_));
+            obj.s_max_ = 1000*ones(length(obj.t_),1);
+            obj.s_p_ = 1000*ones(length(obj.t_),1);
                     
                 
         end% end Reset function
         function InitConstraintsTables(obj)
             s_point_num = length(obj.constraints_);
-            obj.v_max_ = zeros(s_point_num,1);
             obj.v_max_ = zeros(s_point_num,1);
             obj.v_p_ = zeros(s_point_num,1);
             obj.a_max_ = zeros(s_point_num,1);
@@ -306,6 +281,13 @@ classdef NaviSpeedTsGraph <handle
                 [status5 , cur_da_min] = GetConstraint(obj,false,obj.da_min_,obj.st_(i - 1).s); 
                 [status6 , cur_dda_max] = GetConstraint(obj,true,obj.dda_max_,obj.st_(i - 1).s);
                 [status7 , cur_dda_min] = GetConstraint(obj,true,obj.dda_min_,obj.st_(i - 1).s);
+                fprintf('cur_v_max: %f \n' , cur_v_max);
+                fprintf('cur_a_max: %f \n' , cur_a_max);
+                fprintf('cur_a_min: %f \n' , cur_a_min);
+                fprintf('cur_da_max: %f \n' , cur_da_max);
+                fprintf('cur_da_min: %f \n' , cur_da_min);
+                fprintf('cur_dda_max: %f \n' , cur_dda_max);
+                
                 
                 if (~status1 || ~status2 || ...
                     ~status3 || ~status4 || ...
@@ -415,7 +397,7 @@ classdef NaviSpeedTsGraph <handle
 %             if(i0 < 0 || i1 >= length(table))
             if(i0 < 1 || i1 >= length(table))
                 out = false;
-                con = table(1);
+                con = table(2);
                 return;
             end
             
@@ -581,15 +563,33 @@ classdef NaviSpeedTsGraph <handle
             dst.dda_preffered = min(constraints.dda_preffered , dst.dda_preffered);
         end% end CombineConstraints function
         
+        function CombineConstraintsRewrite(obj,constraints,index)
+%             fprintf('constraints.v_max: %f \n',constraints.v_max);
+            obj.constraints_(index).v_max = constraints.v_max;
+            obj.constraints_(index).v_preffered = constraints.v_preffered ;
+            obj.constraints_(index).a_max = constraints.a_max;
+            obj.constraints_(index).a_preffered = constraints.a_preffered ;
+            obj.constraints_(index).b_max = constraints.b_max ;
+            obj.constraints_(index).b_preffered = constraints.b_preffered;
+            obj.constraints_(index).da_max = constraints.da_max ;
+            obj.constraints_(index).da_preffered = constraints.b_preffered ;
+            obj.constraints_(index).dda_max = constraints.dda_max ;
+            obj.constraints_(index).dda_preffered = constraints.dda_preffered ;
+%             fprintf('obj.constraints_(%d ).v_max: %f \n',index,obj.constraints_(index).v_max);
+        end% end CombineConstraintsRewrite function
+        
         function UpdateRangeConstraints(obj,start_s, end_s ,constraints)
             i0 = uint32(floor(start_s / obj.s_step_));
             i1 = uint32(ceil(end_s / obj.s_step_));
             
+            
             if i0 == i1
-                CombineConstraints(obj,constraints , obj.constraints_(1));
+%                 CombineConstraints(obj,constraints , obj.constraints_(1));
+                CombineConstraintsRewrite(obj,constraints , 1);
             else
                 for i = 1:1:length(obj.constraints_)
-                    CombineConstraints(obj,constraints , obj.constraints_(i));
+%                     CombineConstraints(obj,constraints , obj.constraints_(i));
+                    CombineConstraintsRewrite(obj,constraints , i);
                 end
             end    
             
