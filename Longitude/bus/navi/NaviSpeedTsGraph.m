@@ -26,6 +26,7 @@ classdef NaviSpeedTsGraph <handle
         dda_min_ = []
         dda_p_max_ = []
         dda_p_min_ = []
+        
         constraints_ 
         st_
         output_
@@ -47,7 +48,7 @@ classdef NaviSpeedTsGraph <handle
             obj.cap_saved_ratio_ = min(cap_saved_ratio, 1.0);
 %             s_point_num = uint32((s_max + obj.s_step_) / obj.s_step_);
             s_point_num = uint32((s_max ) / obj.s_step_);
-            fprintf('num of struct constraints_ is: %d \n' , s_point_num);
+%             fprintf('num of struct constraints_ is: %d \n' , s_point_num);
 %             obj.constraints_ = zeros(s_point_num,1);
             MakeConstrainStructArray(obj,s_point_num);%init struct array constraints_
             
@@ -59,7 +60,7 @@ classdef NaviSpeedTsGraph <handle
                 end
             else
                 t_num1 = 3 * uint32((t_max + t_step) / (25.0 * t_step));
-                fprintf('t_num1: %d \n' , t_num1);
+%                 fprintf('t_num1: %d \n' , t_num1);
                 obj.t_ = zeros(t_num1,1);
                 obj.t_(1) = 0.0;
                 for i = 2:1:(t_num1/3)
@@ -73,8 +74,8 @@ classdef NaviSpeedTsGraph <handle
                 end
             end
             fprintf('length t_ : %d \n' , length(obj.t_));
-            obj.s_max_ = 1000*ones(length(obj.t_),1);
-            obj.s_p_ = 1000*ones(length(obj.t_),1);
+            obj.s_max_ = 1000000*ones(length(obj.t_),1);
+            obj.s_p_ = 10000000*ones(length(obj.t_),1);
                     
                 
         end% end Reset function
@@ -119,15 +120,16 @@ classdef NaviSpeedTsGraph <handle
             num = length(obj.s_max_);
 %             MakeStPointsStructArray(obj , num);
             obj.st_ = MakeStPointsStructArray(obj , num);
-            obj.st_(1).s_max = 0;
-            obj.st_(1).s_min = 0;
-            obj.st_(1).s_p_max = 0;
-            obj.st_(1).s_p_min = 0;
+%             obj.st_(1).s_max = 0;
+%             obj.st_(1).s_min = 0;
+%             obj.st_(1).s_p_max = 0;
+%             obj.st_(1).s_p_min = 0;
             obj.st_(1).s = 0;
             obj.st_(1).v = obj.start_v_;
             obj.st_(1).a = obj.start_a_;
             obj.st_(1).da= obj.start_da_;
             obj.st_(1).dda = 0;
+            obj.st_(1).up = true;
             obj.st_(1).adjust = true;
             
         end% end InitStTable function
@@ -199,16 +201,18 @@ classdef NaviSpeedTsGraph <handle
         function st_struct = MakeStPointsStructArray(obj,sizeofstpoints)
 %             num = length(obj.s_max_);
             num = sizeofstpoints;
-            field1 = 's_max'; value1 = zeros(num,1);
-            field2 = 's_min'; value2 = zeros(num,1);
-            field3 = 's_p_max'; value3 = zeros(num,1);
-            field4 = 's_p_min'; value4 = zeros(num,1);
+%             field1 = 's_max'; value1 = zeros(num,1);
+%             field2 = 's_min'; value2 = zeros(num,1);
+%             field3 = 's_p_max'; value3 = zeros(num,1);
+%             field4 = 's_p_min'; value4 = zeros(num,1);
             field5 = 's'; value5 = zeros(num,1);
             field6 = 'v'; value6 = zeros(num,1);
             field7 = 'a'; value7 = zeros(num,1);
             field8 = 'da'; value8 = zeros(num,1);
             field9 = 'dda'; value9 = zeros(num,1);
-            field10 = 'adjust'; value10 = zeros(num,1);
+            field10 = 'p_ratio'; value10 = ones(num,1);
+            field11 = 'up'; value11 = zeros(num,1);
+            field12 = 'adjust'; value12 = zeros(num,1);
 %             obj.st_=struct(field1,value1,field2,value2,field3,value3,field4,value4,field5,value5,...
 %                 field6,value6,field7,value7,field8,value8,field9,value9,field10,value10);
 %             for i = 1:1:num
@@ -224,16 +228,18 @@ classdef NaviSpeedTsGraph <handle
 %                 obj.st_(i). adjust= value10(i);
 %             end
             for i = 1:1:num
-                st_struct(i). s_max= value1(i);
-                st_struct(i). s_min= value2(i);
-                st_struct(i). s_p_max= value3(i);
-                st_struct(i). s_p_min= value4(i);
+%                 st_struct(i). s_max= value1(i);
+%                 st_struct(i). s_min= value2(i);
+%                 st_struct(i). s_p_max= value3(i);
+%                 st_struct(i). s_p_min= value4(i);
                 st_struct(i). s= value5(i);
                 st_struct(i). v= value6(i);
                 st_struct(i). a= value7(i);
                 st_struct(i). da= value8(i);
                 st_struct(i). dda= value9(i);
-                st_struct(i). adjust= value10(i);
+                st_struct(i). p_ratio= value10(i);
+                st_struct(i). up= value11(i);
+                st_struct(i). adjust= value12(i);
             end
             
         end% end MakeStPointsStructArray function
@@ -259,41 +265,77 @@ classdef NaviSpeedTsGraph <handle
         
         function out = OptimizeStTable(obj)
             mode = 0;
-            start_i = 0;
-            end_i = 0;
-            mode3_start_i = 0;
+            mode0_start_i = 2;%this value in C++ file is 1 
+            mode1_start_i = 1;
+            mode1_end_i = 1;
+            mode2_start_i = 1;
+            mode2_end_i = 1;
+            mode3_start_i = 1;
+            mode3_end_i = 1;
+%             start_i = 0;
+%             end_i = 0;
+%             mode3_start_i = 0;
             
-            for i=2:1:length(obj.st_)
+            p_ratio = -1.0;
+            
+            for i=mode0_start_i :1:length(obj.st_)
+%                 fprintf('i in OptimizeStTable loop : %d \n' ,i);
+                if i ==mode0_start_i -1
+                    if p_ration < 0
+                        p_ratio = obj.st_(2).p_ratio;
+                    end
+                    kPRatioInitStep = 0.05;
+                    p_ratio = p_ratio - kPRatioInitStep;
+                    if p_ratio > 0.0
+                        continue;
+                    else
+                        p_ratio = -1.0;
+                        out = false;
+%                         fprintf('p_ratio below zero, return \n');
+                        return;
+                    end
+                    mode = 1;
+                    i = i +1;
+                    mode1_start_i = i;
+                end
+                
                 cur_s_p = obj.s_p_(i);
                 cur_s_max = obj.s_max_(i);
-                cur_v_max = 1000.0;
-                cur_a_max = 1000.0;
-                cur_a_min = -1000.0;
-                cur_da_max = 1000.0;
-                cur_da_min = -1000.0;
-                cur_dda_max =1000.0;
-                cur_dda_min = -1000.0;
+%                 fprintf('obj.st_(%d - 1).s: %f \n' , i, obj.st_(i - 1).s);
+                [status1 , cur_v_max]         = GetConstraint(obj  ,true,  obj.v_max_,  obj.st_(i - 1).s);
+                [status2 , cur_a_max]         = GetConstraint(obj  ,true,  obj.a_max_,  obj.st_(i - 1).s);
+                [status3 , cur_a_min]          = GetConstraint(obj  ,false,  obj.a_min_,  obj.st_(i - 1).s);
+                [status4 , cur_a_p_min]      = GetConstraint(obj  ,false,  obj.a_p_min_,  obj.st_(i - 1).s);
+                [status5 , cur_da_max]       = GetConstraint(obj  ,true,  obj.da_max_,  obj.st_(i - 1).s);
+                [status6 , cur_da_p_min]    = GetConstraint(obj  ,false,  obj.da_p_min_,  obj.st_(i - 1).s); 
+                [status7 , cur_da_min]        = GetConstraint(obj  ,false,  obj.da_min_,  obj.st_(i - 1).s); 
+                [status8 , cur_dda_max]     = GetConstraint(obj  ,true,  obj.dda_max_,  obj.st_(i - 1).s);
+                [status9 , cur_dda_p_min] = GetConstraint(obj  ,false,  obj.dda_p_min_,  obj.st_(i - 1).s);
+                [status10 , cur_dda_min]   = GetConstraint(obj  ,false,  obj.dda_min_,  obj.st_(i - 1).s);
+%                 fprintf('status1 : %d cur_v_max: %f \n' , status1,cur_v_max);
+%                 fprintf('status2 : %d cur_a_max: %f \n' ,status2, cur_a_max);
+%                 fprintf('status3 : %d cur_a_min: %f \n' ,status3, cur_a_min);
+%                 fprintf('status4 : %d cur_a_p_min: %f \n' ,status4, cur_a_p_min);
+%                 fprintf('status5 : %d cur_da_max: %f \n' ,status5 , cur_da_max);
+%                 fprintf('status6 : %d cur_da_p_min: %f \n' ,status6, cur_da_p_min);
+%                 fprintf('status7 : %d cur_da_min: %f \n' ,status7, cur_da_min);
+%                 fprintf('status8 : %d cur_dda_max: %f \n' ,status8, cur_dda_max);
+%                 fprintf('status9 : %d cur_dda_p_min: %f \n' ,status9, cur_dda_p_min);
+%                 fprintf('status10 : %d cur_dda_min: %f \n' ,status10, cur_dda_min);
                 
-                [status1 , cur_v_max] = GetConstraint(obj,true,obj.v_max_,obj.st_(i - 1).s);
-                [status2 , cur_a_max] = GetConstraint(obj,true,obj.a_max_,obj.st_(i - 1).s);
-                [status3 , cur_a_min] = GetConstraint(obj,false,obj.a_min_,obj.st_(i - 1).s);
-                [status4 , cur_da_max] = GetConstraint(obj,true,obj.da_max_,obj.st_(i - 1).s);
-                [status5 , cur_da_min] = GetConstraint(obj,false,obj.da_min_,obj.st_(i - 1).s); 
-                [status6 , cur_dda_max] = GetConstraint(obj,true,obj.dda_max_,obj.st_(i - 1).s);
-                [status7 , cur_dda_min] = GetConstraint(obj,true,obj.dda_min_,obj.st_(i - 1).s);
-                fprintf('cur_v_max: %f \n' , cur_v_max);
-                fprintf('cur_a_max: %f \n' , cur_a_max);
-                fprintf('cur_a_min: %f \n' , cur_a_min);
-                fprintf('cur_da_max: %f \n' , cur_da_max);
-                fprintf('cur_da_min: %f \n' , cur_da_min);
-                fprintf('cur_dda_max: %f \n' , cur_dda_max);
                 
-                
-                if (~status1 || ~status2 || ...
-                    ~status3 || ~status4 || ...
-                    ~status5 || ~status6 || ~status7)
-%                 st_.resize(i);
-                    break;
+%                 if (~status1 || ~status2 || ~status3 || ~status4 || ...
+%                     ~status5 || ~status6 || ~status7 || ~status8 || ~status9 || ~status10)
+%                     fprintf('break in OptimizeStTable function');
+%                     break;
+%                 end
+                if i > 2
+                    if (~status1 || ~status2 || ~status3 || ~status4 || ...
+                        ~status5 || ~status6 || ~status7 || ~status8 || ~status9 || ~status10)
+                    fprintf('i: %d \n',i);    
+                    fprintf('break in OptimizeStTable function');
+                        break;
+                    end
                 end
                 
 %                 if (~GetConstraint(true,obj.v_max_,obj.st_(i - 1).s, cur_v_max) || ...
@@ -307,49 +349,58 @@ classdef NaviSpeedTsGraph <handle
 %                     break;
 %                 end
                 
-                r = UpdateStPoint(mode, false, cur_s_p , cur_v_max , cur_a_max , cur_a_min,...
-                                               cur_da_max , cur_da_min , cur_dda_max , cur_dda_min,i);
-                                           
+                r = UpdateStPoint(obj,mode, false, p_ratio,cur_s_p , cur_v_max , cur_a_max , ...
+                                                  cur_a_p_min,cur_a_min,cur_da_max ,cur_da_p_min , ...
+                                                  cur_da_min , cur_dda_max ,cur_dda_p_min,  cur_dda_min, i);
+%                 fprintf('r first: %d \n' , r);                           
                 if(~r && obj.st_(i - 1).adjust)
-                    r = UpdateStPoint(mode, true, cur_s_p , cur_v_max , cur_a_max , cur_a_min,...
-                                               cur_da_max , cur_da_min , cur_dda_max , cur_dda_min,i);
+                    r = UpdateStPoint(obj,mode, true, p_ratio,cur_s_p , cur_v_max , cur_a_max , ...
+                                                      cur_a_p_min,cur_a_min,cur_da_max ,cur_da_p_min , ...
+                                                      cur_da_min , cur_dda_max ,cur_dda_p_min,  cur_dda_min, i);
+%                  fprintf('r second: %d \n' , r); 
                 end
                 
                 if(r && obj.st_(i).s > cur_s_max)
                     r = false;
                 end
-                
+%                 fprintf('r third: %d \n' , r);
                 if(r)
                     if(mode == 0)
                         i = i +1;
                     elseif(mode ==1)
-                        if(i  == end_i)
-                            if(end_i - 1 > 0)
-                                mode =2;
-                                i = start_i  ;
-                            else
-                                mode = 0;
-                                i = i +1;
-                            end
+                        if(i  == mode1_end_i)
+                            mode =2;
+                            p_ratio = -1.0;
+                            mode2_end_i = i;
+                            mode2_start_i = i;
+                            i = i +1;
                         else
                             i = i +1;
                         end
                     elseif(mode == 2)
-                        if(i == end_i)
-                            start_i = start_i - 1;
-                            i = start_i;
+                        if(i == mode2_end_i)
+%                             start_i = start_i - 1;
+                            mode2_start_i = mode2_start_i -1;
+                            i = mode2_start_i;
                         else
                             i = i + 1;
                         end
                     elseif(mode == 3)
-                        if(i ==end_i)
-                            if(mode3_start_i == 1)
-                                mode = 0;
+                        if(i == mode3_end_i)
+                            if(mode3_end_i ~= mode1_start_i)
+                                mode = 1;
                                 i = i +1;
                             else
-                                mode = 2;
-                                mode3_start_i = mode3_start_i - 1;
-                                i = start_i;
+                                if mode3_start_i > mode1_start_i +1
+                                    mode = 2;
+                                    p_ratio = -1.0;
+                                    mode2_end_i = i;
+                                    mode2_start_i = mode3_start_i - 1;
+                                else
+                                    mode = 0;
+                                    p_ratio = -1.0;
+                                    i = i + 1;
+                                end
                             end
                         else
                             i = i + 1;
@@ -357,42 +408,49 @@ classdef NaviSpeedTsGraph <handle
                     else
                         if(mode == 0 )
                             mode = 1;
-                            end_i = i;
+                            mode1_end_i = i;
                             i  = i - 1;
-                            start_i = i;
+                            mode1_start_i = i;
                         elseif mode == 1
-                            if (i > start_i + 1)
+                            if (i > mode1_start_i + 1)
                                 mode = 3;
+                                mode3_end_i = i;
                                 i = i - 1;
                                 mode3_start_i = i;
                             else
-                                start_i = start_i - 1;
-                                i = start_i;
+                                p_ratio = -1.0;
+                                mode1_start_i = mode1_start_i - 1;
+                                i = mode1_start_i;
                             end
                         elseif mode == 2
                             mode = 0;
-                            obj.st_(start_i).up = false;
-                            i = start_i;
+                            i = mode2_start_i;
+                            obj.st_(i).up = false;
                         elseif mode ==3
-                            if(mode3_start_i ~= start_i + 1)
+                            if(mode3_start_i ~= mode1_start_i + 1)
                                 mode3_start_i = mode3_start_i - 1;
                                 i = mode3_start_i;
                             else
                                 mode = 1;
-                                start_i = start_i - 1;
-                                i = start_i;
+                                mode1_start_i = mode1_start_i - 1;
+                                i = mode1_start_i;
                             end
                         end
                     end                     
-                end             
+                end
+%                 fprintf('i in OptimizeStTable loop end : %d \n' ,i);
             end
             out = true;
         end%end OptimizeStTable function
 %         function out = GetConstraint(obj, prop ,table ,s ,con)
         function [out , con] = GetConstraint(obj, prop ,table ,s )
+%             fprintf('s: %f \n',s);
             si = s / obj.s_step_;
+            
             i0 = uint32(floor(si));
             i1 = uint32(ceil(si));
+%             fprintf('i0: %d i1: %d \n',i0,i1);
+%             fprintf('i1: %d',i1);
             
 %             if(i0 < 0 || i1 >= length(table))
             if(i0 < 1 || i1 >= length(table))
@@ -414,9 +472,12 @@ classdef NaviSpeedTsGraph <handle
             
         end%end GetConstraint function
         
-        function out = UpdateStPoint(obj,mode,adjust,s_max,v_max,a_max,a_min,...
-                                                        da_max,da_min,dda_max,dda_min,i)
+        function out = UpdateStPoint(obj,mode,adjust,p_ratio, ...
+                                                             s_max,v_max,a_max, a_p_min ,a_min,...
+                                                            da_max,da_p_min ,da_min,dda_max,...
+                                                            dda_p_min , dda_min,i)
             up = true;
+            obj.st_(i).up = true;
             if(mode ==0)
                 up = obj.st_(i).up;
             elseif(mode ==1)
@@ -428,9 +489,21 @@ classdef NaviSpeedTsGraph <handle
                 
             end
             
+            if p_ratio >= 0.0
+                p_ratio = min(obj.st_(i).p_ratio , p_ratio);
+            else
+                p_ratio = obj.st_(i).p_ratio;
+            end
+            a_min = (a_p_min - a_min) * p_ratio + a_min;
+            da_min = (da_p_min - da_min) * p_ratio + da_min;
+            dda_min = (dda_p_min - dda_min) * p_ratio + dda_min;
+
+%             fprintf('adjust before is : %d \n' , adjust);        
             adjust  = adjust && obj.st_(i -1).adjust;
-            
+%             fprintf('i is : %d \n' , i);
+%             fprintf('adjust true of false: %d  \n' , obj.st_(i -1).adjust);
             dt = obj.t_(i) - obj.t_(i - 1);
+%             fprintf('dt is : %f \n' , dt);
 %             get_s_from_v = obj.st_(i - 1).s + v * dt;
 %             get_s_from_a = obj.st_(i-1).s + (obj.st_(i - 1).v + a * dt) * dt;
 %             get_s_from_da = obj.st_(i - 1).s + (obj.st_(i - 1).v +(obj.st_(i - 1).a + da *dt) * dt) * dt;
@@ -443,16 +516,20 @@ classdef NaviSpeedTsGraph <handle
                                                     (obj.st_(i - 1).a + (obj.st_(i - 1).da + dda_min * dt) *dt) * dt) * dt;                                 
             s_da_max_tmp = obj.st_(i - 1).s + (obj.st_(i - 1).v +(obj.st_(i - 1).a + da_max *dt) * dt) * dt;
             s_da_max = min(s_da_max_tmp,s_dda_max);
-            s_da_min_tmp = obj.st_(i - 1).s + (obj.st_(i - 1).v +(obj.st_(i - 1).a + da_min *dt) * dt) * dt;
-            s_da_max = max(s_da_min_tmp,s_dda_min);
+%             s_da_min_tmp = obj.st_(i - 1).s + (obj.st_(i - 1).v +(obj.st_(i - 1).a + da_min *dt) * dt) * dt;
+            s_da_min_tmp = obj.st_(i - 1).s + min((obj.st_(i - 1).v +(obj.st_(i - 1).a + da_min *dt) * dt) , v_max)* dt;
+
+            s_da_min = max(s_da_min_tmp,s_dda_min);
+%                  s_da_min = min(s_da_min_tmp,s_dda_min);
             
             if(adjust)
+%                 fprintf('adjust if run !!! \n');   
                 s_a_max = obj.st_(i-1).s + (obj.st_(i - 1).v + max(a_max,obj.st_(i - 1).a) * dt) * dt;
                 get_s_from_v_tmp =  obj.st_(i - 1).s + max(v_max,obj.st_(i - 1).a) * dt;
                 hard_s_max = min(get_s_from_v_tmp,min(s_a_max,s_da_max));
                 hard_s_min = max(max(obj.st_(i - 1).s , (obj.st_(i - 1).s + 0 * dt)),...
                                                max(obj.st_(i-1).s + (obj.st_(i - 1).v + min(a_min , obj.st_(i - 1).a) * dt) * dt , s_da_min));
-                
+%                 fprintf('hard_s_max: %f hard_s_min: %f \n' , hard_s_max ,hard_s_min);
                 if(hard_s_max > 0)
                     if(hard_s_max < hard_s_min)
                         hard_s_max  = min(s_a_max , s_da_max);
@@ -479,7 +556,7 @@ classdef NaviSpeedTsGraph <handle
                     else
                         s_p = min(soft_s_min,s_v_p);
                     end
-                    obj.st_(i).s = Clamp(s_p,hard_s_min,hard_s_max);
+                    obj.st_(i).s = Clamp(obj,s_p,hard_s_min,hard_s_max);
                 end
                 
             else
@@ -487,7 +564,8 @@ classdef NaviSpeedTsGraph <handle
                                                min( (obj.st_(i-1).s + (obj.st_(i - 1).v + a_max * dt) * dt) , s_da_max));
                 hard_s_min = max(max(obj.st_(i - 1).s , (obj.st_(i - 1).s + 0.0 * dt) ),...
                                                max( (obj.st_(i-1).s + (obj.st_(i - 1).v + a_min * dt) * dt) , s_da_min));
-                    
+%                 fprintf('hard_s_max: %f \n',hard_s_max);  
+%                 fprintf('hard_s_min: %f \n',hard_s_min);  
                 if(hard_s_max < hard_s_min)
                     out =  false;
                     return;
@@ -497,19 +575,21 @@ classdef NaviSpeedTsGraph <handle
                 else
                     obj.st_(i).s = hard_s_min;
                 end
-                   
+%              fprintf('adjust else run !!! \n');      
             end
+            
             obj.st_(i).v = (obj.st_(i).s - obj.st_(i - 1).s) / dt;
             obj.st_(i).a = (obj.st_(i).v - obj.st_(i - 1).v) / dt;
             obj.st_(i).da = (obj.st_(i).a - obj.st_(i - 1).a) / dt;
             obj.st_(i).dda = (obj.st_(i).da - obj.st_(i - 1).da) / dt;
+            obj.st_(i).p_ratio = p_ratio;
             obj.st_(i).up = up;
             obj.st_(i).adjust = adjust;
 
             out = true;
                        
         end
-        function out = Clamp(input,input_min,input_max)
+        function out = Clamp(obj,input,input_min,input_max)
             if input < input_min
                 out = input_min;
             elseif(input > input_max)
@@ -517,7 +597,14 @@ classdef NaviSpeedTsGraph <handle
             else
                 out = input;
             end
-        end
+        end%end Clamp function
+        function UpdateObstacleConstraints(obj,station, safe_station ,speed)
+            for i =1:1:length(obj.s_max_)
+                ds = speed * obj.t_(i);
+                obj.s_max_(i) = min(station + ds , obj.s_max_(i));
+                obj.s_p_(i) = min(safe_station + ds , obj.s_p_(i));
+            end
+        end% end UpdateObstacleConstraints function
         function [val]= Solve(obj)
             InitConstraintsTables(obj);
             

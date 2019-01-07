@@ -1,3 +1,4 @@
+clear
 global kDefaultSStep ;
 global kDefaultSMax ;
 global kDefaultTStep ;
@@ -10,8 +11,18 @@ global kTsGraphTMax ;
 global soft_centric_accel_limit;
 global hard_centric_accel_limit;
 global kappa_preview;
-global kKappaSmooth;
+% global kKappaSmooth;
 global kKappaPreviewBackwardRatio;
+global default_cruise_speed;
+global max_accel;
+global max_decel;
+global max_jerk;
+global max_djerk;
+global preferred_accel;
+global preferred_decel;
+global preferred_jerk;
+global preferred_djerk;
+
 
 kDefaultSStep = 1.0;
 kDefaultSMax = 2.0;
@@ -28,6 +39,15 @@ kKappaPreviewBackwardRatio = 0.25;
 soft_centric_accel_limit = 0.35;%configurable para
 hard_centric_accel_limit = 1.0;% configurable para
 kappa_preview = 15.0; %configurable para
+default_cruise_speed = 8.28;
+preferred_accel = 0.4;
+preferred_decel = 0.7;
+preferred_jerk = 0.5;
+preferred_djerk = 3.0;
+max_accel = 1.0;
+max_decel = 3.5;
+max_jerk =  3.0;
+max_djerk = 100.0;
 
 % navi_speed_decider_config {
 %         preferred_accel: 0.4
@@ -51,12 +71,9 @@ kappa_preview = 15.0; %configurable para
 %         enable_planning_start_point: true
 %         kappa_preview: 15.0
 %     }
-start_v = 0;
+start_v =5;
 start_a = 0;
 start_da = 0;
-% s_step = planning_length > kTsGraphSStep
-%                     ? kTsGraphSStep
-%                     : planning_length / kFallbackSpeedPointNum;
 
 ts_graph_ = NaviSpeedTsGraph(0.1,0,0);
 
@@ -86,18 +103,10 @@ path_points = readPathPoints(filepath);
 %   optional string lane_id = 9;
 % }
 
-
-
-%     global kDefaultSStep ;
-%     global kDefaultSMax ;
-%     global kDefaultTStep ;
-%     global kDefaultTMax ;
-%     global kSmoothCount ;
-
 start_s =  path_points(1).s;
 end_s = path_points(end).s ;
 planning_length = end_s - start_s ;
-compress_t = true;
+compress_t = false;
 cap_saved_ratio = 0.0;
 
 fprintf('start to make speed decision ,start_v : %f \n', start_v);
@@ -114,13 +123,19 @@ else
      s_step = planning_length / kFallbackSpeedPointNum;
 end
 
-ts_graph_.Reset(s_step, planning_length, kTsGraphTStep, kTsGraphTMax, compress_t, cap_saved_ratio,start_v,start_a, start_da);
+ts_graph_.Reset(s_step, 150, kTsGraphTStep, kTsGraphTMax, compress_t, cap_saved_ratio,start_v,start_a, start_da);
 
 %     ret = AddPerceptionRangeConstraints();
 ret = AddCentricAccelerationConstraints(path_points,ts_graph_);
 
 if ret ~= true
     fprintf('add t-s constraints base on centric acceleration failed');
+    return;
+end
+
+ret = AddConfiguredConstraints(1,start_s,end_s ,ts_graph_);
+if ret ~= true
+    fprintf('add t-s constraints base on configs  failed');
     return;
 end
 
@@ -168,8 +183,8 @@ function status = AddCentricAccelerationConstraints(path_points,ts_graph_)
         
         v_preffered = sqrt(soft_centric_accel_limit / kappa);%preffered speed compute every points
         v_max = sqrt(hard_centric_accel_limit / kappa); %max speed compute every points
-        fprintf('v_preffered: %f \n' , v_preffered);
-        fprintf('v_max: %f \n' , v_max);
+%         fprintf('v_preffered: %f \n' , v_preffered);
+%         fprintf('v_max: %f \n' , v_max);
         
         start_s = max( (start_s - kappa_preview * ( 1 - kKappaPreviewBackwardRatio)) , 0);
         end_s = end_s + kappa_preview *  kKappaPreviewBackwardRatio ;
@@ -234,20 +249,37 @@ function status = AddCentricAccelerationConstraints(path_points,ts_graph_)
 
 end% end AddCentricAccelerationConstraints function
 
-% function status = AddConfiguredConstraints(reference_line_info , start_s , end_s)
-%     constraints.v_max = FLAGS_planning_upper_speed_limit;
-%     constraints.v_preffered = constraints.v_max;
-%     constraints.a_max = max_accel_;
-%     constraints.a_preffered = preferred_accel_;
-%     constraints.b_max = max_decel_;
-%     constraints.b_preffered = preferred_decel_;
-%     constraints.da_preffered = preferred_jerk_;
-%     constraints.da_max = max_jerk_;
-%     
-% 
-% 
-% 
-% end
+function status = AddConfiguredConstraints(reference_line_info , start_s , end_s,ts_graph)
+    global max_accel;
+    global preferred_accel;
+    global max_decel;
+    global preferred_decel;
+    global preferred_jerk;
+    global max_jerk;
+    global kTsGraphSStep;
+    global default_cruise_speed;
+    
+    constraints.v_max = default_cruise_speed;
+    constraints.v_preffered = constraints.v_max;
+    constraints.a_max = max_accel;
+    constraints.a_preffered = preferred_accel;
+    constraints.b_max = max_decel;
+    constraints.b_preffered = preferred_decel;
+    constraints.da_preffered = preferred_jerk;
+    constraints.da_max = max_jerk;
+    constraints.dda_max = 2.1475e+09;%max number in C++ file
+    constraints.dda_preffered = 2.1475e+09;%max number in C++ file
+    
+    for s = start_s : kTsGraphSStep : end_s
+        speed_saved = constraints.v_preffered;
+        v_limit = default_cruise_speed;%to be using the comupting result v_limit based on reference_line_info here
+        constraints.v_preffered = min(constraints.v_preffered, v_limit);
+        ts_graph.UpdateRangeConstraints(s-start_s , (s - start_s + kTsGraphSStep) , constraints);
+        constraints.v_preffered = speed_saved;
+    end
+    status = true;
+
+end% end AddConfiguredConstraints function
 
 function path_point_struct = MakePathPointsStructArray(size)
     num = size;
@@ -287,6 +319,8 @@ function path_points = readPathPoints(filepath)
     X = [];
     Y = [];
     Dkappa = [];
+    %use sscanf should be quicker
+%     s = A{1,1}{4:delta_num:num,1};
     for i = 1:1:(num/delta_num)
         for j = 1:1:delta_num
             a1 = A{1,1}{(i-1)*delta_num + 1,1};
@@ -317,7 +351,7 @@ function path_points = readPathPoints(filepath)
         Theta = [Theta;theta];
         X = [X;x];
         Y = [Y;y];
-        Dkappa = [Dkappa;kappa];
+        Dkappa = [Dkappa;dkappa];
 
     end
     size_path_points = 200;
